@@ -1257,6 +1257,61 @@ end
 
 ###############################################################################
 #
+#   FlintPadicField / padic
+#
+###############################################################################
+
+mutable struct FlintQadicField <: Field
+   p::Int
+   pinv::Float64
+   pow::Ptr{Void}
+   minpre::Int
+   maxpre::Int
+   mode::Cint
+   a::Int         # fmpz
+   j::Ptr{Void}   # slong*
+   len::Int 
+   var::Cstring   # char*
+   prec_max::Int
+
+   function FlintQadicField(p::fmpz, d::Int, prec::Int)
+      !isprime(p) && error("Prime base required in FlintPadicField")
+      z = new()
+      ccall((:qadic_ctx_init_conway, :libflint), Void,
+           (Ref{FlintQadicField}, Ref{fmpz}, Int, Int, Int, Cstring, Cint),
+                                     z, p, d, 0, 0, "a", 0)
+      finalizer(z, _qadic_ctx_clear_fn)
+      z.prec_max = prec
+      return z
+   end
+end
+
+function _qadic_ctx_clear_fn(a::FlintQadicField)
+   ccall((:qadic_ctx_clear, :libflint), Void, (Ref{FlintQadicField},), a)
+end
+
+mutable struct qadic <: FieldElem
+   coeffs::Int
+   alloc::Int
+   length::Int 
+   val::Int
+   N::Int 
+   parent::FlintQadicField
+
+   function qadic(prec::Int)
+      z = new()
+      ccall((:qadic_init2, :libflint), Void, (Ref{qadic}, Int), z, prec)
+      finalizer(z, _qadic_clear_fn)
+      return z
+   end
+end
+
+function _qadic_clear_fn(a::qadic)
+   ccall((:qadic_clear, :libflint), Void, (Ref{qadic},), a)
+end
+
+###############################################################################
+#
 #   FmpzRelSeriesRing / fmpz_rel_series
 #
 ###############################################################################
